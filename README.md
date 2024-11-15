@@ -11,9 +11,31 @@ $ php /usr/share/xdmod/tools/etl/etl_overseer.php -p ingest-organizations  -p in
 ```
 
 ### Ingestion and Aggregation commands:
+Ingestion and aggregation can be run using either the `xdmod-htcss-ingestor` script or issuing a set of command using the `etl_overseer.php` script. It is suggested to use `xdmod-htcss-ingestor`.
+
+xdmod-htcss-ingestor commands
+------------------
+
+** Ingest and aggregate **
+```
+$ /bin/htcss-xdmod-ingestor -d "/path/to/log/files" --last-modified-start-date "$start_date"
+```
+
+** Ingest only **
+```
+$ /bin/htcss-xdmod-ingestor --ingest -d "/path/to/log/files" --last-modified-start-date "$start_date"
+```
+
+** Aggregate only **
+```
+$ /bin/htcss-xdmod-ingestor --aggregate --last-modified-start-date "$start_date"
+```
+
+etl_overseer.php commands
+------------------
 
 ```
-$ php /usr/share/xdmod/tools/etl/etl_overseer.php -p htcss.htcss-ingest -d 'HTCSS_LOG_DIR=/root/data/htcss/raw_aggregate/daily_logs/'
+$ php /usr/share/xdmod/tools/etl/etl_overseer.php -p htcss.htcss-ingest -d 'HTCSS_LOG_DIR=/path/to/log/files'
 $ php /usr/share/xdmod/tools/etl/etl_overseer.php -p ingest-organizations  -p ingest-resource-types -p xdmod.ingest-resources -a xdmod.staging-ingest-common.resource-specs -p xdmod.hpcdb-ingest-common -p xdmod.hpcdb-xdw-ingest-common
 $ php /usr/share/xdmod/tools/etl/etl_overseer.php -p htcss.htcss-aggregate --last-modified-start-date "$start_date"
 $ acl-config
@@ -22,7 +44,16 @@ $ xdmod-build-filter-lists -r Jobs
 
 The first command ingests logs into the database. It will ingest any file that matches the pattern of `YYYY-MM-DDTH:mm:ss_YYYY-MM-DDTHH:mm:ss.json`. The only files in this folder should be the ones you want to ingest when the command is run.
 
-For the `--last-modified-start-date flag`, the time provided should be before `htcss-ingest` pipeline was run.
+Last Modified Start Date
+------------------
+
+When aggregating data use this date as the basis of what information to include.
+Only row ingested on or after this date will be aggregated.
+The time provided should be before `htcss-ingest` pipeline was run.
+If not provided this defaults to the start of the ingest and aggregation process.
+
+The value specified for the `date` **must** be an ISO 8601 date or date and
+time (e.g. "2019-01-01" or "2019-01-01 12:00:00").
 
 ### Hierarchy
 
