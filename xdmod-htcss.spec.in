@@ -35,6 +35,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
+%{_bindir}/xdmod-htcss-ingestor
 %{_docdir}/%{name}-%{version}__PRERELEASE__/
 %{_sysconfdir}/xdmod/
 %{_datadir}/xdmod/

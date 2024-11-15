@@ -1,0 +1,299 @@
+#!/usr/bin/env php
+<?php
+/**
+ * Ingest HTCSS aggregate data.
+ *
+ * @package xdmod-htcss
+ *
+ * @author Greg Dean <gmdean@buffalo.edu>
+ */
+
+require_once __DIR__ . '/../configuration/linker.php';
+
+use CCR\DB;
+use CCR\Log;
+use ETL\Utilities;
+use ETL\Configuration\EtlConfiguration;
+use ETL\EtlOverseer;
+use ETL\EtlOverseerOptions;
+use OpenXdmod\DataWarehouseInitializer;
+
+// Disable memory limit.
+ini_set('memory_limit', -1);
+
+try {
+    main();
+} catch (Exception $e) {
+    do {
+        fwrite(STDERR, $e->getMessage() . "\n");
+        fwrite(STDERR, $e->getTraceAsString() . "\n");
+    } while ($e = $e->getPrevious());
+    exit(1);
+}
+
+function main()
+{
+    global $argv, $logger;
+
+    $opts = array(
+        array('h', 'help'),
+        array('d:', 'htcss-log-directory:'),
+
+        // Logging levels.
+        array('v', 'verbose'),
+        array('',  'debug'),
+        array('q', 'quiet'),
+
+        array('', 'ingest'),
+        array('', 'aggregate::'),
+
+        // Date used by aggregation.
+        array('', 'last-modified-start-date:'),
+    );
+
+    $shortOptions = implode(
+        '',
+        array_map(function ($opt) { return $opt[0]; }, $opts)
+    );
+    $longOptions = array_map(function ($opt) { return $opt[1]; }, $opts);
+
+    $args = getopt($shortOptions, $longOptions);
+
+    if ($args === false) {
+        fwrite(STDERR, "Failed to parse arguments\n");
+        exit(1);
+    }
+
+    $help = $ingest = $aggregate = $noAppend = false;
+
+    $lastModifiedStartDate = $htcss_log_directory = null;
+
+    $logLevel = -1;
+
+    foreach ($args as $key => $value) {
+        if (is_array($value)) {
+            fwrite(STDERR, "Multiple values not allowed for '$key'\n");
+            exit(1);
+        }
+
+        switch ($key) {
+            case 'h':
+            case 'help':
+                $help = true;
+                break;
+            case 'q':
+            case 'quiet':
+                $logLevel = max($logLevel, Log::WARNING);
+                break;
+            case 'v':
+            case 'verbose':
+                $logLevel = max($logLevel, Log::INFO);
+                break;
+            case 'debug':
+                $logLevel = max($logLevel, Log::DEBUG);
+                break;
+            case 'ingest':
+                $ingest = true;
+                break;
+            case 'aggregate':
+                $aggregate = true;
+                break;
+            case 'last-modified-start-date':
+                $lastModifiedStartDate = $value;
+                break;
+            case 'd':
+            case 'htcss-log-directory':
+                $htcss_log_directory = $value;
+                break;
+            default:
+                fwrite(STDERR, "Unexpected option '$key'\n");
+                exit(1);
+                break;
+        }
+    }
+
+    if ($logLevel === -1) { $logLevel = Log::NOTICE; }
+
+    if ($help) {
+        displayHelpText();
+        exit;
+    }
+
+    $conf = array(
+        'file'            => false,
+        'mail'            => false,
+        'consoleLogLevel' => $logLevel,
+    );
+
+    $logger = Log::factory('htcss-xdmod-ingestor', $conf);
+
+    $cmd = implode(' ', array_map('escapeshellarg', $argv));
+    $logger->info("Command: $cmd");
+
+    if ($lastModifiedStartDate !== null && strtotime($lastModifiedStartDate) === false) {
+        $logger->crit("Invalid last modified start date '$lastModifiedStartDate'");
+        exit(1);
+    }
+
+    $db = DB::factory('datawarehouse');
+
+    if($lastModifiedStartDate === null ){
+        // Use current time from the database in case clocks are not
+        // synchronized.
+        $lastModifiedStartDate = $db->query('SELECT NOW() AS now FROM dual')[0]['now'];
+    }
+
+    // NOTE: "process_start_time" is needed for the log summary.
+    $logger->notice(array(
+        'message'            => 'htcss-xdmod-ingestor start',
+        'process_start_time' => date('Y-m-d H:i:s'),
+    ));
+
+    // If no task was explicitly specified, do ingestion and aggregation.
+    if (!$ingest && !$aggregate) {
+        $ingest = $aggregate = true;
+    }
+
+
+    if ($ingest) {
+        $logger->info('Ingesting data');
+        try {
+            $etlConfig = EtlConfiguration::factory(
+                CONFIG_DIR . '/etl/etl.json',
+                null,
+                $logger,
+                array('default_module_name' => 'xdmod')
+            );
+
+            Utilities::setEtlConfig($etlConfig);
+            // Run ingestion pipelines
+            Utilities::runEtlPipeline(
+                array(
+                  'htcss.htcss-ingest',
+                  'ingest-organizations',
+                  'ingest-resource-types',
+                  'ingest-resources'
+                ),
+                $logger,
+                array(
+                    'last-modified-start-date' => $lastModifiedStartDate,
+                    'variable-overrides' => ['HTCSS_LOG_DIR' => $htcss_log_directory]
+                )
+            );
+
+            // Set and run etl action to ingest resource specs
+            $scriptOptions = array_merge(
+                array(
+                    'default-module-name' => 'xdmod',
+                    'actions' => array('xdmod.staging-ingest-common.resource-specs')
+                )
+            );
+
+            $logger->debug(
+                sprintf(
+                    'Running ETL pipeline with script options %s',
+                    json_encode($scriptOptions)
+                )
+            );
+
+            $overseerOptions = new EtlOverseerOptions(
+                $scriptOptions,
+                $logger
+            );
+
+            $overseer = new EtlOverseer($overseerOptions, $logger);
+            $overseer->execute($etlConfig);
+
+            // Run other common ingest pipelines
+            Utilities::runEtlPipeline(
+                array(
+                  'hpcdb-ingest-common',
+                  'hpcdb-xdw-ingest-common'
+                ),
+                $logger
+            );
+        } catch (Exception $e) {
+            $logger->crit(array(
+                'message'    => 'Ingestion failed: ' . $e->getMessage(),
+                'stacktrace' => $e->getTraceAsString(),
+            ));
+            exit(1);
+        }
+        $logger->info('Done ingesting data');
+    }
+
+    if ($aggregate) {
+        $logger->info('Aggregating data');
+        try {
+            Utilities::runEtlPipeline(
+                array(
+                  'htcss.htcss-aggregate',
+                ),
+                $logger,
+                array('last-modified-start-date' => $lastModifiedStartDate)
+            );
+
+            $aclstatus = 0;
+            passthru('__XDMOD_BIN_PATH__/acl-config', $aclstatus);
+            if ($aclstatus !== 0) {
+                exit($aclstatus);
+            }
+
+            $filterListBuilder = new FilterListBuilder();
+            $filterListBuilder->setLogger($logger);
+            $filterListBuilder->buildRealmLists('Jobs');
+
+        } catch (Exception $e) {
+            $logger->crit(array(
+                'message'    => 'Aggregation failed: ' . $e->getMessage(),
+                'stacktrace' => $e->getTraceAsString(),
+            ));
+            exit(1);
+        }
+        $logger->info('Done aggregating data');
+    }
+
+    // NOTE: "process_end_time" is needed for the log summary.
+    $logger->notice(array(
+        'message'          => 'htcss-xdmod-ingestor end',
+        'process_end_time' => date('Y-m-d H:i:s'),
+    ));
+
+    exit;
+}
+
+function displayHelpText()
+{
+    echo <<<'EOF'
+
+Usage: xdmod-ingestor [-v]
+
+    -h, --help
+        Display this message and exit.
+
+    -v, --verbose
+        Output info level and above log messages.
+
+    --debug
+        Output debug level and above log messages.
+
+    -d, --htcss-log-directory
+        Directory to parse for log files to ingest
+
+    --aggregate
+        Aggregate ingested data.
+
+    --ingest
+        Ingest data from log files.
+
+    -q, --quiet
+        Output warning level and above log messages.
+
+    --last-modified-start-date *date*
+        Specify the last modified start date (YYYY-MM-DD) to be used during
+        aggregation. Only jobs ingested on or after this date will be
+        aggregated.
+        Default: now
+
+EOF;
+}
