@@ -281,11 +281,10 @@ Usage: xdmod-ingestor [-v]
         Directory to parse for log files to ingest
 
     --aggregate
-        If a *realm* (job, cloud, storage, resourcespecs) is specified aggregate that realm
-        otherwise aggregate all realms.
+        Aggregate ingested data.
 
     --ingest
-        Ingest one specific datatype (openstack, genericcloud, storage).
+        Ingest data from log files.
 
     -q, --quiet
         Output warning level and above log messages.
