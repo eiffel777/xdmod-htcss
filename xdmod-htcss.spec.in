@@ -41,5 +41,5 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/xdmod/
 
 %post
-mv %{_sysconfdir}/xdmod/etl/etl_action_defs.d/jobs/htcss/allocation.json %{_sysconfdir}/xdmod/etl/etl_action_defs.d/jobs/xdw/allocation.json
-mv %{_sysconfdir}/xdmod/etl/etl_tables.d/jobs/htcss/allocation.json %{_sysconfdir}/xdmod/etl/etl_tables.d/jobs/xdw/allocation.json
+mv %{_sysconfdir}/xdmod/etl/etl_action_defs.d/htcss/allocation.json %{_sysconfdir}/xdmod/etl/etl_action_defs.d/jobs/xdw/allocation.json
+mv %{_sysconfdir}/xdmod/etl/etl_tables.d/htcss/allocation.json %{_sysconfdir}/xdmod/etl/etl_tables.d/jobs/xdw/allocation.json
