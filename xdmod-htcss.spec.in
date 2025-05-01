@@ -11,7 +11,7 @@ Source:        %{name}-%{version}__PRERELEASE__.tar.gz
 BuildRoot:     %(mktemp -ud %{_tmppath}/%{name}-%{version}__PRERELEASE__-%{release}-XXXXXX)
 BuildArch:     noarch
 BuildRequires: php-cli
-Requires:      xdmod >= 10.5.0, xdmod < 11.5.0
+Requires:      xdmod >= 10.5.0, xdmod <= 11.5.0
 
 %description
 Open XDMoD module that supports data from HTCondor Software Suite (HTCSS)
@@ -39,3 +39,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_docdir}/%{name}-%{version}__PRERELEASE__/
 %{_sysconfdir}/xdmod/
 %{_datadir}/xdmod/
+
+%post
+mv %{_sysconfdir}/xdmod/etl/etl_action_defs.d/jobs/htcss/allocation.json %{_sysconfdir}/xdmod/etl/etl_action_defs.d/jobs/xdw/allocation.json
+mv %{_sysconfdir}/xdmod/etl/etl_tables.d/jobs/htcss/allocation.json %{_sysconfdir}/xdmod/etl/etl_tables.d/jobs/xdw/allocation.json

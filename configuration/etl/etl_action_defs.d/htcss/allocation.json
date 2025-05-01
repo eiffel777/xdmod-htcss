@@ -1,0 +1,66 @@
+{
+    "table_definition": {
+        "$ref": "${table_definition_dir}/jobs/xdw/allocation.json#/table_definition"
+    },
+    "source_query": {
+        "records": {
+            "resource_id": "r.id",
+            "account_id": "COALESCE(af.account_id, -1)",
+            "request_id": -1,
+            "principalinvestigator_person_id": "person_pi.id",
+            "fos_id": "COALESCE(reqf.primary_fos_id, -1)",
+            "charge_number": "NULL",
+            "order_id": "NULL",
+            "boardtype_id": 0,
+            "initial_allocation": 0,
+            "initial_start_date": "'0000-00-00'",
+            "initial_start_date_ts": 0,
+            "initial_end_date": "'0000-00-00'",
+            "base_allocation": 0,
+            "remaining_allocation": 0,
+            "end_date": "'0000-00-00'",
+            "end_date_ts": 0,
+            "long_name": "raw.project",
+            "short_name": "raw.project",
+            "allocation_origin_id": 0
+        },
+        "joins": [
+            {
+                "name": "htcss_raw_logs",
+                "schema": "modw_htcss",
+                "alias": "raw"
+            },
+            {
+                "name": "resourcefact",
+                "schema": "${DESTINATION_SCHEMA}",
+                "alias": "r",
+                "type": "LEFT",
+                "on": "raw.resource = r.code"
+            },
+            {
+                "name": "person",
+                "schema": "${DESTINATION_SCHEMA}",
+                "alias": "person_pi",
+                "type": "LEFT",
+                "on": "raw.project_pi_person_id = person_pi.id"
+            },
+            {
+                "schema": "${SOURCE_SCHEMA}",
+                "name": "hpcdb_accounts",
+                "alias": "af",
+                "type": "LEFT",
+                "on": "af.account_id = raw.project_pi_person_id"
+            },
+            {
+                "schema": "${SOURCE_SCHEMA}",
+                "name": "hpcdb_requests",
+                "alias": "reqf",
+                "type": "LEFT",
+                "on": "reqf.account_id = af.account_id"
+            }
+        ],
+        "groupby": [
+            "raw.project"
+        ]
+    }
+}

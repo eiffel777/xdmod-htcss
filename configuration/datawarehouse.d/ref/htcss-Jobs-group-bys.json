@@ -76,7 +76,6 @@
           "$ref": "datawarehouse.d/ref/group-by-time-period.json#/year"
       },
     "institution": {
-        "attribute_table": "organization",
         "attribute_table_schema": "modw",
         "attribute_to_aggregate_table_key_map": [{
             "id": "person_organization_id"
@@ -100,7 +99,6 @@
         "name": "User Institution"
     },
     "resource_institution": {
-        "attribute_table": "organization",
         "attribute_table_schema": "modw",
         "attribute_to_aggregate_table_key_map": [{
             "id": "resource_organization_id"
@@ -124,7 +122,6 @@
         "name": "Resource Institution"
     },
     "pi_institution": {
-        "attribute_table": "organization",
         "attribute_table_schema": "modw",
         "attribute_to_aggregate_table_key_map": [{
             "id": "piperson_organization_id"
@@ -146,5 +143,28 @@
         "category": "Administrative",
         "description_html": "Organizations that have PIs with allocations.",
         "name": "PI Institution"
+    },
+    "project": {
+        "attribute_table_schema": "modw",
+        "attribute_to_aggregate_table_key_map": [{
+            "id": "allocation_id"
+        }],
+        "attribute_values_query": {
+            "joins": [{
+                "name": "allocation"
+            }],
+            "orderby": [
+                "id"
+            ],
+            "records": {
+                "id": "id",
+                "name": "long_name",
+                "order_id": "id",
+                "short_name": "short_name"
+            }
+        },
+        "category": "Administrative",
+        "description_html": "Project",
+        "name": "Project"
     }
 }
