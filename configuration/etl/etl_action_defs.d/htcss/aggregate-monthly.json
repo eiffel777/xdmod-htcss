@@ -4,8 +4,8 @@
     },
     "aggregation_period_query": {
         "overseer_restrictions": {
-            "last_modified_start_date": "start_date >= (SELECT MIN(start_date) FROM modw_htcss.htcss_raw_logs where aggregation_unit_id = 2)",
-            "last_modified_end_date": "end_date <= (SELECT MAX(end_date) FROM modw_htcss.htcss_raw_logs where aggregation_unit_id = 2)"
+            "last_modified_start_date": "start_date >= (SELECT MIN(start_date) FROM modw_htcss.htcss_raw_logs where aggregation_unit_id = 2 AND last_modified >= ${VALUE})",
+            "last_modified_end_date": "end_date <= (SELECT MAX(end_date) FROM modw_htcss.htcss_raw_logs where aggregation_unit_id = 2 AND last_modified <= ${VALUE})"
         }
     },
     "source_query": {
@@ -22,13 +22,13 @@
             "submission_venue_id": "-1",
             "job_record_type_id": "-1",
             "job_task_type_id": "-1",
-            "allocation_id": "-1",
+            "allocation_id": "COALESCE(allocation.id, -1)",
             "account_id": "-1",
             "requesting_person_id": "p.id",
             "person_id": "p.id",
             "person_organization_id": "person_org.id",
             "person_nsfstatuscode_id": "-1",
-            "fos_id": "COALESCE(fos.id, -1)",
+            "fos_id": "COALESCE(req.primary_fos_id, -1)",
             "principalinvestigator_person_id": "COALESCE(person_pi.id, -1)",
             "piperson_organization_id": "COALESCE(pi_org.id, 0)",
             "job_time_bucket_id": "COALESCE(raw.job_wall_time_bucket, -1)",
@@ -115,11 +115,25 @@
                 "on": "raw.project_pi_institution = pi_org.name"
             },
             {
-                "name": "fieldofscience",
+                "name": "account",
                 "schema": "${UTILITY_SCHEMA}",
-                "alias": "fos",
+                "alias": "acc",
                 "type": "LEFT",
-                "on": "raw.project = fos.description"
+                "on": "raw.project_pi = acc.charge_number"
+            },
+            {
+                "name": "request",
+                "schema": "${UTILITY_SCHEMA}",
+                "alias": "req",
+                "type": "LEFT",
+                "on": "req.account_id = acc.id"
+            },
+            {
+                "name": "allocation",
+                "schema": "${UTILITY_SCHEMA}",
+                "alias": "allocation",
+                "type": "LEFT",
+                "on": "raw.project = allocation.long_name"
             }
         ],
         "where": [

@@ -36,7 +36,6 @@
             "class": "HtcssStructuredFileIngestor",
             "definition_file": "htcss/staging.json",
             "stop_on_exception": true,
-            "truncate_destination": true,
             "endpoints": {
                 "source": {
                     "type": "directoryscanner",

@@ -167,18 +167,26 @@ function main()
 
             Utilities::setEtlConfig($etlConfig);
             // Run ingestion pipelines
+            if (!is_null($htcss_log_directory)) {
+                Utilities::runEtlPipeline(
+                    array(
+                    'htcss.htcss-ingest'
+                    ),
+                    $logger,
+                    array(
+                        'last-modified-start-date' => $lastModifiedStartDate,
+                        'variable-overrides' => ['HTCSS_LOG_DIR' => $htcss_log_directory]
+                    )
+                );
+            }
+
             Utilities::runEtlPipeline(
                 array(
-                  'htcss.htcss-ingest',
                   'ingest-organizations',
                   'ingest-resource-types',
                   'ingest-resources'
                 ),
-                $logger,
-                array(
-                    'last-modified-start-date' => $lastModifiedStartDate,
-                    'variable-overrides' => ['HTCSS_LOG_DIR' => $htcss_log_directory]
-                )
+                $logger
             );
 
             // Set and run etl action to ingest resource specs

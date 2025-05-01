@@ -48,6 +48,10 @@
                 {
                     "realm": "Jobs",
                     "group_by": "username"
+                },
+                {
+                    "realm": "Jobs",
+                    "group_by": "project"
                 }
             ]
         },
@@ -100,6 +104,10 @@
                     "realm": "Jobs",
                     "group_by": "username",
                     "disable": true
+                },
+                {
+                    "realm": "Jobs",
+                    "group_by": "project"
                 }
             ]
         }
